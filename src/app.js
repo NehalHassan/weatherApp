@@ -1,7 +1,7 @@
 import React, {Component} from 'react';
 import {
   StyleSheet, Text, View, Platform, TextInput, ActivityIndicator, KeyboardAvoidingView,
-  StatusBar, ImageBackground
+  StatusBar, ImageBackground, ScrollView
 } from 'react-native';
 import { fetchWeather, fetchLocationId } from './api';
 import {getImageForWeather} from './helpers'
@@ -10,12 +10,13 @@ const upperCaseText = text => {
   return text[0].toUpperCase() + text.toLowerCase().slice(1)
 }
 
-const renderWeather = city => {
+const renderWeather = state => {
+  const {city, temperature, weather} = state;
   return (
     <>
     <Text style={[styles.largeText, styles.textStyle]}>{upperCaseText(city)}</Text>
-    <Text style={[styles.smallText, styles.textStyle]}>Cloudy</Text>
-    <Text style={[styles.largeText, styles.textStyle]}>24°</Text>
+    <Text style={[styles.smallText, styles.textStyle]}>{weather}</Text>
+    <Text style={[styles.largeText, styles.textStyle]}>{Math.round(temperature)}°c</Text>
     </>
   );
 }
@@ -26,7 +27,6 @@ export default class WeatherApp extends Component {
     weather: '',
     location:'london',
     city: 'london',
-    weather:'',
     temperature: 0,
   }
 
@@ -35,9 +35,11 @@ export default class WeatherApp extends Component {
     fetchLocationId(this.state.location).then(
       response => response.data && fetchWeather(response.data[0].woeid).then(
         response => {
+          console.log(response.data,'response')
           this.setState({
             weather: response.data.consolidated_weather[0].weather_state_name,
             loading: false,
+            temperature: response.data.consolidated_weather[0].the_temp
           })}
       )
     ).catch(error => {
@@ -63,7 +65,7 @@ export default class WeatherApp extends Component {
   }
 
   renderContent = () => {
-    const { error, city } = this.state;
+    const { error } = this.state;
     if (error) {
       return (
         <Text style={[styles.textStyle, styles.error, styles.marginBottom]}>
@@ -71,37 +73,45 @@ export default class WeatherApp extends Component {
         </Text>
       )
     } else {
-      return renderWeather(city)
+      return renderWeather(this.state)
     }
   }
 
   render() {
     console.log(this.state,'weatherData')
     const { loading, weather } = this.state;
-    const backgroundImage = getImageForWeather(weather)
-    console.log(backgroundImage,'backgroundImage')
+    const backgroundImage = getImageForWeather(weather) || './assets/sunny.jpg' ;
+
     return (
-      <KeyboardAvoidingView style={styles.container} behavior="padding">
+      <ScrollView
+      contentContainerStyle={styles.container}
+      keyboardDismissMode="interactive"
+      >
         <StatusBar barStyle="light-content" />
         <ImageBackground
-        source={require(backgroundImage)}
+        source={require('./assets/sunny.jpg' )}
         style={styles.imageContainer}
         imageStyle={styles.image}
         >
           <View style={styles.detailsContainer}>
-            <ActivityIndicator style={styles.marginBottom} animating={loading} color="red" size="large" />
-            {!loading && this.renderContent()}
-            <TextInput
-                style={styles.textInput}
-                onChangeText={this.onChangeText}
-                onSubmitEditing={this.onSubmit}
-                value={this.state.location}
-                clearButtonMode="always"
-                placeholder="Search any city"
-            />
+            <View style={styles.textWrapper}>
+              <ActivityIndicator style={styles.marginBottom} animating={loading} color="gray" size="large" />
+              {!loading && this.renderContent()}
+            </View>
+            <KeyboardAvoidingView
+            behavior="padding" >
+              <TextInput
+                  style={styles.textInput}
+                  onChangeText={this.onChangeText}
+                  onSubmitEditing={this.onSubmit}
+                  value={this.state.location}
+                  clearButtonMode="always"
+                  placeholder="Search any city"
+              />
+            </KeyboardAvoidingView>
           </View>
         </ImageBackground>
-      </KeyboardAvoidingView>
+      </ScrollView>
     );
   }
 }
@@ -114,8 +124,12 @@ const styles = StyleSheet.create({
   detailsContainer: {
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.2)',
     paddingHorizontal: 20,
+    alignItems: 'center'
+  },
+  textWrapper: {
+    flex: 0.4,
+    justifyContent: 'center',
     alignItems: 'center'
   },
   textStyle: {
@@ -156,5 +170,4 @@ const styles = StyleSheet.create({
     height: null,
     resizeMode: 'cover',
   },
-
 });
